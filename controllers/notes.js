@@ -45,6 +45,7 @@ notesRouter.delete('/:id' , (req, res, next) => {
 notesRouter.put('/:id', (req, res, next) => {
   const { content, important } = req.body;
 
+  console.log(req);
   Note.findById(req.params.id)
     .then((note) => {
       if (!note) {
@@ -54,7 +55,7 @@ notesRouter.put('/:id', (req, res, next) => {
       note.content = content;
       note.important = important;
 
-      return note.save.then((updatedNote) => {
+      return note.save().then((updatedNote) => {
         res.json(updatedNote);
       });
     })
