@@ -1,5 +1,6 @@
 const { test, after, beforeEach, describe } = require('node:test');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const supertest = require('supertest');
 const app = require('../app');
@@ -61,7 +62,27 @@ describe('When there is initially some notes saved', () => {
   });
 
   describe('addition of a new note', () => {
+    beforeEach(async () => {
+      await User.deleteMany({});
+      const testUser = new User({
+        username: 'testUser',
+        name: 'User for testing',
+        passwordHash: await bcrypt.hash('hello', 10),
+      });
+
+      await testUser.save();
+    });
+
     test('succeeds with valid data', async () => {
+      const allUsers = await helper.usersInDb();
+      const testUser = allUsers[0];
+      const userForToken = {
+        username: testUser.username,
+        id: testUser.id,
+      };
+
+      const token = jwt.sign(userForToken, process.env.SECRET, { expiresIn: 60*60 });
+
       const newNote = {
         content: 'async/await simplifies making async calls',
         important: true,
@@ -69,6 +90,7 @@ describe('When there is initially some notes saved', () => {
 
       await api
         .post('/api/notes')
+        .set('Authorization', `Bearer ${token}`)
         .send(newNote)
         .expect(201)
         .expect('Content-Type', /application\/json/);
@@ -81,9 +103,18 @@ describe('When there is initially some notes saved', () => {
     });
 
     test('fails with status code 400 if data invalid', async () => {
+      const allUsers = await helper.usersInDb();
+      const testUser = allUsers[0];
+      const userForToken = {
+        username: testUser.username,
+        id: testUser.id,
+      };
+
+      const token = jwt.sign(userForToken, process.env.SECRET, { expiresIn: 60*60 });
       const newNote = { important: true };
 
-      await api.post('/api/notes').send(newNote).expect(400);
+      await api.post('/api/notes').set('Authorization', `Bearer ${token}`)
+        .send(newNote).expect(400);
 
       const notesAtEnd = await helper.notesInDb();
 
